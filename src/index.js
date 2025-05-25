@@ -10,11 +10,12 @@ import notificationRoutes from './routes/notificationRoutes.js';
 import usersRoutes from './routes/usersRoutes.js';
 import reportRoutes from './routes/reportRoutes.js';
 import { connectDB } from './lib/db.js';
-
+import job from './lib/cron.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+job.start();
 // Middleware
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
