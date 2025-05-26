@@ -6,7 +6,7 @@ import { validateRegistration, validateLogin } from '../middleware/validation.js
 import { protectRoute } from '../middleware/auth.middleware.js';
 import crypto from 'crypto';
 import { 
-  sendEmail, 
+  sendPasswordResetEmail, 
   sendVerificationEmail, 
   sendNewDeviceLoginAlert,
   sendWelcomeEmail,
@@ -264,12 +264,14 @@ router.post('/forgot-password', async (req, res) => {
     await user.save();
 
     // إرسال بريد إلكتروني مع رابط إعادة تعيين كلمة المرور
-    const resetUrl = `${process.env.CLIENT_URL}/auth/reset-password/${resetToken}`;
-    await sendEmail({
-      to: user.email,
-      subject: 'إعادة تعيين كلمة المرور',
-      text: `لإعادة تعيين كلمة المرور، انقر على الرابط التالي: ${resetUrl}`
-    });
+    await sendPasswordResetEmail(user.email, resetToken)
+
+    // const resetUrl = `${process.env.CLIENT_URL}/auth/reset-password/${resetToken}`;
+    // await sendEmail({
+    //   to: user.email,
+    //   subject: 'إعادة تعيين كلمة المرور',
+    //   text: `لإعادة تعيين كلمة المرور، انقر على الرابط التالي: ${resetUrl}`
+    // });
 
     res.json({ message: 'تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني' });
   } catch (err) {
