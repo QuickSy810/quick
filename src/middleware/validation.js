@@ -2,7 +2,7 @@ export const validateRegistration = (req, res, next) => {
   const { email, password, firstName, lastName, phone } = req.body;
 
   // التحقق من وجود البريد الإلكتروني
-  if (!email || !email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+  if (!email || !email.match(/^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/)) {
     return res.status(400).json({ message: 'يرجى إدخال بريد إلكتروني صحيح' });
   }
 
