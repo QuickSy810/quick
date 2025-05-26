@@ -343,7 +343,7 @@ router.get('/verify-email/:token', async (req, res) => {
     await user.save();
 
     // إرسال تم التأكيد من البريد
-    await sendAccountVerifiedEmail(email, user.firstName)
+    await sendAccountVerifiedEmail(user.email, user.firstName)
 
     res.json({
       message: 'تم تأكيد البريد الإلكتروني بنجاح',
