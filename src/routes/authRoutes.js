@@ -107,8 +107,6 @@ router.post('/login', validateLogin, async (req, res) => {
     if (!user.isEmailVerified) {
       return res.status(400).json({ 
         message: 'يرجى تأكيد البريد الإلكتروني قبل تسجيل الدخول',
-        verificationLink: `${process.env.CLIENT_URL}/auth/resend-verification`,
-        email: user.email
       });
     }
 
