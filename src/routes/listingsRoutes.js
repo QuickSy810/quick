@@ -5,44 +5,44 @@ import { checkRole, protectRoute } from '../middleware/auth.middleware.js';
 import { Category } from '../models/Category.js';
 import rateLimit from 'express-rate-limit';
 import {
-  notifyFollowersNewListing,
-  notifyFollowersListingUpdate
+    notifyFollowersNewListing,
+    notifyFollowersListingUpdate
 } from '../services/notificationService.js';
 
 const router = express.Router();
 
 // إنشاء محدد معدل الطلبات للحماية من الطلبات المتكررة
 const createListingLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000 * 24, // 24 ساعة
-  max: 1000, // الحد الأقصى 10 إعلانات في اليوم
-  message: 'تم تجاوز الحد المسموح لإنشاء الإعلانات، يرجى المحاولة لاحقاً'
+    windowMs: 60 * 60 * 1000 * 24, // 24 ساعة
+    max: 1000, // الحد الأقصى 10 إعلانات في اليوم
+    message: 'تم تجاوز الحد المسموح لإنشاء الإعلانات، يرجى المحاولة لاحقاً'
 });
 
 /**
  * التحقق من صحة بيانات الإعلان
  */
 const validateListing = (req, res, next) => {
-  const { title, description, price } = req.body;
-  
-  const errors = {};
-  
-  if (title && (title.length < 1 || title.length > 100)) {
-    errors.title = 'عنوان الإعلان يجب أن يكون بين 10 و 100 حرف';
-  }
-  
-  if (description && (description.length < 20 || description.length > 1000)) {
-    errors.description = 'وصف الإعلان يجب أن يكون بين 20 و 1000 حرف';
-  }
-  
-  if (price && (isNaN(price) || price < 0)) {
-    errors.price = 'السعر يجب أن يكون رقماً موجباً';
-  }
-  
-  if (Object.keys(errors).length > 0) {
-    return res.status(400).json({ errors });
-  }
-  
-  next();
+    const { title, description, price } = req.body;
+
+    const errors = {};
+
+    if (title && (title.length < 1 || title.length > 100)) {
+        errors.title = 'عنوان الإعلان يجب أن يكون بين 10 و 100 حرف';
+    }
+
+    if (description && (description.length < 20 || description.length > 1000)) {
+        errors.description = 'وصف الإعلان يجب أن يكون بين 20 و 1000 حرف';
+    }
+
+    if (price && (isNaN(price) || price < 0)) {
+        errors.price = 'السعر يجب أن يكون رقماً موجباً';
+    }
+
+    if (Object.keys(errors).length > 0) {
+        return res.status(400).json({ errors });
+    }
+
+    next();
 };
 
 /**
@@ -88,7 +88,7 @@ router.post('/', [protectRoute, createListingLimiter, validateListing], async (r
         }
 
         // Validate location object
-        if (!location.city || !location.area || !location.street ) {
+        if (!location.city || !location.area || !location.street) {
             return res.status(400).json({
                 message: 'Invalid location data',
                 missingFields: {
@@ -377,23 +377,23 @@ router.get('/user/:id', async (req, res) => {
         const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 12));
         const skip = (page - 1) * limit;
 
-         // === Pagination and Count ===
-         const totalListings = await Listing.countDocuments();
-         const totalPages = Math.ceil(totalListings / limit);
- 
-         if (page > totalPages && totalPages > 0) {
-             return res.status(400).json({
-                 message: 'Page number exceeds total pages',
-                 totalPages,
-                 currentPage: page
-             });
-         }
+        // === Pagination and Count ===
+        const totalListings = await Listing.countDocuments();
+        const totalPages = Math.ceil(totalListings / limit);
+
+        if (page > totalPages && totalPages > 0) {
+            return res.status(400).json({
+                message: 'Page number exceeds total pages',
+                totalPages,
+                currentPage: page
+            });
+        }
 
         const listings = await Listing.find({ user: userId })
             .skip(skip)
             .limit(limit)
-          
-     
+
+
         res.json({
             listings,
             pagination: {
@@ -405,7 +405,7 @@ router.get('/user/:id', async (req, res) => {
                 hasNextPage: page < totalPages,
                 hasPreviousPage: page > 1
             },
-           
+
         });
 
     } catch (error) {
@@ -425,32 +425,32 @@ router.get('/user/:id', async (req, res) => {
  */
 router.get('/my-favorites', protectRoute, async (req, res) => {
     try {
-      const page = parseInt(req.query.page) || 1;
-      const limit = parseInt(req.query.limit) || 10;
-      const skip = (page - 1) * limit;
-  
-      const listings = await Listing.find({
-        favorites: req.user._id
-      })
-        .skip(skip)
-        .limit(limit)
-        .populate('user', 'firstName lastName profileImage');
-  
-      const totalListings = await Listing.countDocuments({
-        favorites: req.user._id
-      });
-  
-      res.json({
-        listings,
-        totalListings,
-        totalPages: Math.ceil(totalListings / limit),
-        currentPage: page
-      });
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const skip = (page - 1) * limit;
+
+        const listings = await Listing.find({
+            favorites: req.user._id
+        })
+            .skip(skip)
+            .limit(limit)
+            .populate('user', 'firstName lastName profileImage');
+
+        const totalListings = await Listing.countDocuments({
+            favorites: req.user._id
+        });
+
+        res.json({
+            listings,
+            totalListings,
+            totalPages: Math.ceil(totalListings / limit),
+            currentPage: page
+        });
     } catch (error) {
-      console.error('Error fetching favorite listings:', error);
-      res.status(500).json({ message: 'حدث خطأ أثناء جلب الإعلانات المفضلة' });
+        console.error('Error fetching favorite listings:', error);
+        res.status(500).json({ message: 'حدث خطأ أثناء جلب الإعلانات المفضلة' });
     }
-  });
+});
 
 
 /**
@@ -760,7 +760,7 @@ router.put('/:id', protectRoute, async (req, res) => {
             priceChanged: req.body.price && req.body.price !== oldPrice,
             oldPrice: req.body.price && req.body.price !== oldPrice ? oldPrice : undefined
         };
-        
+
         // إرسال إشعار للمتابعين
         await notifyFollowersListingUpdate(req.user._id, updatedListing, notificationData);
 
@@ -779,34 +779,34 @@ router.put('/:id', protectRoute, async (req, res) => {
  * @body {string} status - الحالة الجديدة (active, sold, received, inactive)
  */
 router.patch('/:id/status', protectRoute, async (req, res) => {
-  try {
-    const { status } = req.body;
-    const validStatuses = ['active', 'sold', 'received', 'inactive'];
-    
-    if (!validStatuses.includes(status)) {
-      return res.status(400).json({
-        message: 'حالة غير صالحة',
-        validStatuses
-      });
+    try {
+        const { status } = req.body;
+        const validStatuses = ['active', 'sold', 'received', 'inactive'];
+
+        if (!validStatuses.includes(status)) {
+            return res.status(400).json({
+                message: 'حالة غير صالحة',
+                validStatuses
+            });
+        }
+
+        const listing = await Listing.findById(req.params.id);
+        if (!listing) {
+            return res.status(404).json({ message: 'الإعلان غير موجود' });
+        }
+
+        if (listing.user.toString() !== req.user._id.toString()) {
+            return res.status(403).json({ message: 'غير مصرح لك بتعديل هذا الإعلان' });
+        }
+
+        listing.status = status;
+        await listing.save();
+
+        res.json({ message: 'تم تحديث حالة الإعلان بنجاح', listing });
+    } catch (error) {
+        console.error('Error updating listing status:', error);
+        res.status(500).json({ message: 'حدث خطأ أثناء تحديث حالة الإعلان' });
     }
-    
-    const listing = await Listing.findById(req.params.id);
-    if (!listing) {
-      return res.status(404).json({ message: 'الإعلان غير موجود' });
-    }
-    
-    if (listing.user.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'غير مصرح لك بتعديل هذا الإعلان' });
-    }
-    
-    listing.status = status;
-    await listing.save();
-    
-    res.json({ message: 'تم تحديث حالة الإعلان بنجاح', listing });
-  } catch (error) {
-    console.error('Error updating listing status:', error);
-    res.status(500).json({ message: 'حدث خطأ أثناء تحديث حالة الإعلان' });
-  }
 });
 
 /**
@@ -816,31 +816,31 @@ router.patch('/:id/status', protectRoute, async (req, res) => {
  * @param {string} id - معرف الإعلان
  */
 router.get('/:id/stats', protectRoute, async (req, res) => {
-  try {
-    const listing = await Listing.findById(req.params.id);
-    if (!listing) {
-      return res.status(404).json({ message: 'الإعلان غير موجود' });
+    try {
+        const listing = await Listing.findById(req.params.id);
+        if (!listing) {
+            return res.status(404).json({ message: 'الإعلان غير موجود' });
+        }
+
+        if (listing.user.toString() !== req.user._id.toString()) {
+            return res.status(403).json({ message: 'غير مصرح لك بعرض إحصائيات هذا الإعلان' });
+        }
+
+        const stats = {
+            views: listing.views || 0,
+            favoritesCount: listing.favorites ? listing.favorites.length : 0,
+            createdAt: listing.createdAt,
+            lastUpdated: listing.updatedAt,
+            status: listing.status,
+            isFeatured: listing.isFeatured,
+            featuredUntil: listing.featuredUntil
+        };
+
+        res.json(stats);
+    } catch (error) {
+        console.error('Error fetching listing stats:', error);
+        res.status(500).json({ message: 'حدث خطأ أثناء جلب إحصائيات الإعلان' });
     }
-    
-    if (listing.user.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'غير مصرح لك بعرض إحصائيات هذا الإعلان' });
-    }
-    
-    const stats = {
-      views: listing.views || 0,
-      favoritesCount: listing.favorites ? listing.favorites.length : 0,
-      createdAt: listing.createdAt,
-      lastUpdated: listing.updatedAt,
-      status: listing.status,
-      isFeatured: listing.isFeatured,
-      featuredUntil: listing.featuredUntil
-    };
-    
-    res.json(stats);
-  } catch (error) {
-    console.error('Error fetching listing stats:', error);
-    res.status(500).json({ message: 'حدث خطأ أثناء جلب إحصائيات الإعلان' });
-  }
 });
 
 /**
@@ -850,33 +850,33 @@ router.get('/:id/stats', protectRoute, async (req, res) => {
  * @param {string} id - معرف الإعلان
  */
 router.post('/:id/favorite', protectRoute, async (req, res) => {
-  try {
-    const listing = await Listing.findById(req.params.id);
-    if (!listing) {
-      return res.status(404).json({ message: 'الإعلان غير موجود' });
-    }
+    try {
+        const listing = await Listing.findById(req.params.id);
+        if (!listing) {
+            return res.status(404).json({ message: 'الإعلان غير موجود' });
+        }
 
-    // التحقق من أن المستخدم لم يضف الإعلان للمفضلة من قبل
-    if (!listing.favorites) {
-      listing.favorites = [];
-    }
-    
-    if (listing.favorites.includes(req.user._id)) {
-      return res.status(400).json({ message: 'الإعلان موجود بالفعل في المفضلة' });
-    }
+        // التحقق من أن المستخدم لم يضف الإعلان للمفضلة من قبل
+        if (!listing.favorites) {
+            listing.favorites = [];
+        }
 
-    // إضافة المستخدم إلى قائمة المفضلة
-    listing.favorites.push(req.user._id);
-    await listing.save();
+        if (listing.favorites.includes(req.user._id)) {
+            return res.status(400).json({ message: 'الإعلان موجود بالفعل في المفضلة' });
+        }
 
-    res.json({ 
-      message: 'تمت إضافة الإعلان إلى المفضلة',
-      favoritesCount: listing.favorites.length 
-    });
-  } catch (error) {
-    console.error('Error adding listing to favorites:', error);
-    res.status(500).json({ message: 'حدث خطأ أثناء إضافة الإعلان إلى المفضلة' });
-  }
+        // إضافة المستخدم إلى قائمة المفضلة
+        listing.favorites.push(req.user._id);
+        await listing.save();
+
+        res.json({
+            message: 'تمت إضافة الإعلان إلى المفضلة',
+            favoritesCount: listing.favorites.length
+        });
+    } catch (error) {
+        console.error('Error adding listing to favorites:', error);
+        res.status(500).json({ message: 'حدث خطأ أثناء إضافة الإعلان إلى المفضلة' });
+    }
 });
 
 /**
@@ -886,28 +886,28 @@ router.post('/:id/favorite', protectRoute, async (req, res) => {
  * @param {string} id - معرف الإعلان
  */
 router.delete('/:id/favorite', protectRoute, async (req, res) => {
-  try {
-    const listing = await Listing.findById(req.params.id);
-    if (!listing) {
-      return res.status(404).json({ message: 'الإعلان غير موجود' });
-    }
+    try {
+        const listing = await Listing.findById(req.params.id);
+        if (!listing) {
+            return res.status(404).json({ message: 'الإعلان غير موجود' });
+        }
 
-    // إزالة المستخدم من قائمة المفضلة
-    if (listing.favorites) {
-      listing.favorites = listing.favorites.filter(
-        userId => userId.toString() !== req.user._id.toString()
-      );
-      await listing.save();
-    }
+        // إزالة المستخدم من قائمة المفضلة
+        if (listing.favorites) {
+            listing.favorites = listing.favorites.filter(
+                userId => userId.toString() !== req.user._id.toString()
+            );
+            await listing.save();
+        }
 
-    res.json({ 
-      message: 'تمت إزالة الإعلان من المفضلة',
-      favoritesCount: listing.favorites ? listing.favorites.length : 0
-    });
-  } catch (error) {
-    console.error('Error removing listing from favorites:', error);
-    res.status(500).json({ message: 'حدث خطأ أثناء إزالة الإعلان من المفضلة' });
-  }
+        res.json({
+            message: 'تمت إزالة الإعلان من المفضلة',
+            favoritesCount: listing.favorites ? listing.favorites.length : 0
+        });
+    } catch (error) {
+        console.error('Error removing listing from favorites:', error);
+        res.status(500).json({ message: 'حدث خطأ أثناء إزالة الإعلان من المفضلة' });
+    }
 });
 
 
