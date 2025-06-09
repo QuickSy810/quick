@@ -60,9 +60,9 @@ const listingSchema = new mongoose.Schema({
             type: String,
             required: [true, 'City is required'],
             enum: [
-                'damascus', 'aleppo', 'homs', 'latakia', 'hama', 'tartus',
-                'deirEzZor', 'alHasakah', 'raqqa', 'daraa', 'idlib',
-                'alSuwayda', 'quneitra'
+                'damascus', 'rifdimashq', 'aleppo', 'homs', 'latakia', 'hama', 'tartus',
+                'deirezzor', 'alhasakah', 'raqqa', 'daraa', 'idlib',
+                'alsuwayda', 'quneitra'
             ]
         },
         area: {
@@ -134,7 +134,7 @@ const listingSchema = new mongoose.Schema({
 
 // ✅ الفهارس
 listingSchema.index({ 'location.coordinates': '2dsphere' });
-listingSchema.index({ title: 'text', description: 'text', 'location.city': 'text', 'location.area': 'text',}, {
+listingSchema.index({ title: 'text', description: 'text', 'location.city': 'text', 'location.area': 'text', }, {
     weights: {
         title: 10,
         description: 5,
