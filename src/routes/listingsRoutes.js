@@ -366,8 +366,7 @@ router.get('/', async (req, res) => {
 
 /**
  * الحصول على قائمة الإعلانات لمستخدم معين
- * GET /api/listings/:id
- * @requires authentication
+ * GET /api/listings/user/:id
  * @param {string} id - معرف المستخدم (userId)
  * @query {string} search - كلمة البحث
  * @query {string} category - تصنيف رئيسي
@@ -379,19 +378,18 @@ router.get('/', async (req, res) => {
  * @query {number} page - رقم الصفحة
  * @query {number} limit - عدد العناصر في الصفحة
  */
-router.get('/user/:id', protectRoute, async (req, res) => {
+router.get('/user/:id', async (req, res) => {
     try {
         const userId = req.params.id;
-
         const page = Math.max(1, parseInt(req.query.page) || 1);
         const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 12));
         const skip = (page - 1) * limit;
 
         const filter = { user: userId };
 
-        // If the requested user ID is not the authenticated user's ID,
-        // then only show active listings. Otherwise, show all (including drafts).
-        if (req.user && userId.toString() !== req.user._id.toString()) {
+        // إذا كان المستخدم مسجل الدخول وهو صاحب الإعلانات، نعرض كل الإعلانات
+        // وإلا نعرض فقط الإعلانات النشطة
+        if (!req.user || userId.toString() !== req.user._id.toString()) {
             filter.status = 'active';
         }
 
