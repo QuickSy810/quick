@@ -63,7 +63,8 @@ router.post('/', [protectRoute, createListingLimiter, validateListing], async (r
             condition,
             location,
             images,
-            attributes
+            attributes,
+            status
         } = req.body;
 
         // Ensure user exists
@@ -110,7 +111,6 @@ router.post('/', [protectRoute, createListingLimiter, validateListing], async (r
             });
         }
 
-
         // Validate images array
         if (!Array.isArray(images) || images.length === 0) {
             return res.status(400).json({ message: 'At least one image is required' });
@@ -118,6 +118,14 @@ router.post('/', [protectRoute, createListingLimiter, validateListing], async (r
 
         if (images.length > 10) {
             return res.status(400).json({ message: 'Maximum 10 images allowed per listing' });
+        }
+
+        // Validate status if provided
+        if (status && !['active', 'draft'].includes(status)) {
+            return res.status(400).json({
+                message: 'Invalid status provided',
+                validStatuses: ['active', 'draft']
+            });
         }
 
         // Upload images to cloudinary in parallel
@@ -156,6 +164,7 @@ router.post('/', [protectRoute, createListingLimiter, validateListing], async (r
             images,
             attributes,
             user: req.user._id,
+            status: status || 'active',
         };
 
         const newListing = new Listing(listingData);
@@ -358,6 +367,7 @@ router.get('/', async (req, res) => {
 /**
  * الحصول على قائمة الإعلانات لمستخدم معين
  * GET /api/listings/:id
+ * @requires authentication
  * @param {string} id - معرف المستخدم (userId)
  * @query {string} search - كلمة البحث
  * @query {string} category - تصنيف رئيسي
@@ -369,7 +379,7 @@ router.get('/', async (req, res) => {
  * @query {number} page - رقم الصفحة
  * @query {number} limit - عدد العناصر في الصفحة
  */
-router.get('/user/:id', async (req, res) => {
+router.get('/user/:id', protectRoute, async (req, res) => {
     try {
         const userId = req.params.id;
 
@@ -377,8 +387,93 @@ router.get('/user/:id', async (req, res) => {
         const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 12));
         const skip = (page - 1) * limit;
 
+        const filter = { user: userId };
+
+        // If the requested user ID is not the authenticated user's ID,
+        // then only show active listings. Otherwise, show all (including drafts).
+        if (req.user && userId.toString() !== req.user._id.toString()) {
+            filter.status = 'active';
+        }
+
+        // === Full-text search logic ===
+        if (req.query.search) {
+            const searchQuery = req.query.search.trim();
+            if (searchQuery.length > 0) {
+                const searchResults = await Listing.find(
+                    { $text: { $search: searchQuery } },
+                    { score: { $meta: "textScore" } }
+                ).sort({ score: { $meta: "textScore" } }).select('_id');
+
+                if (searchResults.length > 0) {
+                    filter._id = { $in: searchResults.map(result => result._id) };
+                } else {
+                    filter.$or = [
+                        { title: { $regex: searchQuery, $options: 'i' } },
+                        { description: { $regex: searchQuery, $options: 'i' } },
+                        { 'location.city': { $regex: searchQuery, $options: 'i' } },
+                        { 'location.area': { $regex: searchQuery, $options: 'i' } },
+                        { 'location.street': { $regex: searchQuery, $options: 'i' } }
+                    ];
+                }
+            }
+        }
+
+        // === Category filter based on slug ===
+        if (req.query.category) {
+            const categorySlug = req.query.category.trim().toLowerCase();
+            const category = await Category.findOne({ slug: categorySlug, parent: null });
+            if (!category) {
+                return res.status(400).json({
+                    message: 'Invalid category slug',
+                    providedSlug: categorySlug
+                });
+            }
+            filter.category = category._id;
+        }
+
+        // === Subcategory filter based on slug ===
+        if (req.query.subcategory) {
+            const subcategorySlug = req.query.subcategory.trim().toLowerCase();
+            const subcategory = await Category.findOne({ slug: subcategorySlug });
+            if (!subcategory) {
+                return res.status(400).json({
+                    message: 'Invalid subcategory slug',
+                    providedSlug: subcategorySlug
+                });
+            }
+            filter.subCategory = subcategory._id;
+        }
+
+        // === Location filters ===
+        if (req.query.city) {
+            filter['location.city'] = {
+                $regex: new RegExp(req.query.city, 'i')
+            };
+        }
+
+        if (req.query.area) {
+            filter['location.area'] = {
+                $regex: new RegExp(req.query.area, 'i')
+            };
+        }
+
+        if (req.query.street) {
+            filter['location.street'] = {
+                $regex: new RegExp(req.query.street, 'i')
+            };
+        }
+
+        // === Price range ===
+        if (req.query.minPrice) {
+            filter.price = { ...filter.price, $gte: parseFloat(req.query.minPrice) };
+        }
+        if (req.query.maxPrice) {
+            filter.price = { ...filter.price, $lte: parseFloat(req.query.maxPrice) };
+        }
+
+
         // === Pagination and Count ===
-        const totalListings = await Listing.countDocuments();
+        const totalListings = await Listing.countDocuments(filter);
         const totalPages = Math.ceil(totalListings / limit);
 
         if (page > totalPages && totalPages > 0) {
@@ -389,9 +484,12 @@ router.get('/user/:id', async (req, res) => {
             });
         }
 
-        const listings = await Listing.find({ user: userId })
+        const listings = await Listing.find(filter)
             .skip(skip)
             .limit(limit)
+            .populate('user', 'firstName lastName profileImage')
+            .populate('category', 'nameInEnglish slug')
+            .populate('subCategory', 'nameInEnglish slug');
 
 
         res.json({
@@ -405,7 +503,15 @@ router.get('/user/:id', async (req, res) => {
                 hasNextPage: page < totalPages,
                 hasPreviousPage: page > 1
             },
-
+            filters: {
+                search: req.query.search || null,
+                category: req.query.category || null,
+                subcategory: req.query.subcategory || null,
+                city: req.query.city || null,
+                area: req.query.area || null,
+                minPrice: req.query.minPrice || null,
+                maxPrice: req.query.maxPrice || null
+            }
         });
 
     } catch (error) {
@@ -500,7 +606,7 @@ router.get('/my-listings', protectRoute, async (req, res) => {
 
         // Add status filter if provided
         if (req.query.status) {
-            const validStatuses = ['active', 'sold', 'pending', 'inactive'];
+            const validStatuses = ['active', 'sold', 'pending', 'inactive', 'draft'];
             if (!validStatuses.includes(req.query.status)) {
                 return res.status(400).json({
                     message: 'Invalid status',
@@ -603,6 +709,11 @@ router.post('/:id/feature', protectRoute, checkRole(['admin']), async (req, res)
             return res.status(404).json({ message: 'Listing not found' });
         }
 
+        // Prevent featuring draft listings
+        if (listing.status === 'draft') {
+            return res.status(400).json({ message: 'Cannot feature a draft listing. Please activate it first.' });
+        }
+
         // Check if the user is the owner of the listing
         if (listing.user.toString() !== req.user._id.toString()) {
             return res.status(403).json({ message: 'You are not authorized to feature this listing' });
@@ -703,6 +814,11 @@ router.get('/:id', async (req, res) => {
             return res.status(404).json({ message: 'Listing not found' });
         }
 
+        // If listing is draft, only allow owner to view it
+        if (listing.status === 'draft' && (!req.user || listing.user.toString() !== req.user._id.toString())) {
+            return res.status(404).json({ message: 'Listing not found' }); // Or 403 if more specific error is preferred
+        }
+
         // Increment views
         listing.views = (listing.views || 0) + 1;
         await listing.save();
@@ -776,12 +892,12 @@ router.put('/:id', protectRoute, async (req, res) => {
  * PATCH /api/listings/:id/status
  * @requires authentication
  * @param {string} id - معرف الإعلان
- * @body {string} status - الحالة الجديدة (active, sold, received, inactive)
+ * @body {string} status - الحالة الجديدة (active, sold, received, inactive, draft)
  */
 router.patch('/:id/status', protectRoute, async (req, res) => {
     try {
         const { status } = req.body;
-        const validStatuses = ['active', 'sold', 'received', 'inactive'];
+        const validStatuses = ['active', 'sold', 'received', 'inactive', 'draft'];
 
         if (!validStatuses.includes(status)) {
             return res.status(400).json({
@@ -854,6 +970,11 @@ router.post('/:id/favorite', protectRoute, async (req, res) => {
         const listing = await Listing.findById(req.params.id);
         if (!listing) {
             return res.status(404).json({ message: 'الإعلان غير موجود' });
+        }
+
+        // Prevent favoriting draft listings by non-owners
+        if (listing.status === 'draft' && listing.user.toString() !== req.user._id.toString()) {
+            return res.status(403).json({ message: 'غير مصرح لك بإضافة هذا الإعلان إلى المفضلة' });
         }
 
         // التحقق من أن المستخدم لم يضف الإعلان للمفضلة من قبل
