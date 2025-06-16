@@ -8,7 +8,7 @@ export const notifyFollowersNewListing = async (userId, listing) => {
   try {
     // الحصول على المستخدم وقائمة متابعيه
     const user = await User.findById(userId).populate('followers');
-    
+
     // إنشاء إشعارات للمتابعين الذين فعّلوا إشعارات الإعلانات الجديدة
     const notifications = user.followers
       .filter(follower => follower.notificationSettings.newListings)
@@ -34,7 +34,7 @@ export const notifyFollowersNewListing = async (userId, listing) => {
 export const notifyFollowersPriceChange = async (userId, listing, oldPrice) => {
   try {
     const user = await User.findById(userId).populate('followers');
-    
+
     const notifications = user.followers
       .filter(follower => follower.notificationSettings.priceChanges)
       .map(follower => ({
@@ -59,7 +59,7 @@ export const notifyFollowersPriceChange = async (userId, listing, oldPrice) => {
 export const notifyFollowersStatusChange = async (userId, listing, oldStatus) => {
   try {
     const user = await User.findById(userId).populate('followers');
-    
+
     const notifications = user.followers
       .filter(follower => follower.notificationSettings.statusChanges)
       .map(follower => ({
@@ -84,9 +84,9 @@ export const notifyFollowersStatusChange = async (userId, listing, oldStatus) =>
 export const notifyFollowersListingUpdate = async (userId, listing, updates) => {
   try {
     const user = await User.findById(userId).populate('followers');
-    
+
     let notificationMessage = `قام ${user.firstName} بتحديث إعلان "${listing.title}"`;
-    
+
     // إضافة معلومات تغيير السعر إلى رسالة الإشعار
     if (updates.priceChanged) {
       notificationMessage += ` - تم تغيير السعر من ${updates.oldPrice} إلى ${listing.price}`;
@@ -192,7 +192,7 @@ export const sendBulkNotifications = async (recipientIds, senderId, type, messag
  */
 const shouldSendNotification = (user, type) => {
   const settings = user.notificationSettings;
-  
+
   switch (type) {
     case 'NEW_LISTING':
       return settings.newListings;

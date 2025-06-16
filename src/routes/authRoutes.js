@@ -2,12 +2,13 @@ import express from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { User } from '../models/User.js';
+import cloudinary from '../lib/cloudinary.js';
 import { validateRegistration, validateLogin } from '../middleware/validation.js';
 import { protectRoute } from '../middleware/auth.middleware.js';
 import crypto from 'crypto';
-import { 
-  sendPasswordResetEmail, 
-  sendVerificationEmail, 
+import {
+  sendPasswordResetEmail,
+  sendVerificationEmail,
   sendNewDeviceLoginAlert,
   sendWelcomeEmail,
   sendAccountVerifiedEmail
@@ -23,7 +24,7 @@ const router = express.Router();
 router.post('/register', validateRegistration, async (req, res) => {
   try {
     const { email, password, firstName, lastName, phone, city } = req.body;
-   
+
     // التحقق من وجود المستخدم
     let user = await User.findOne({ email });
     if (user) {
@@ -69,7 +70,7 @@ router.post('/register', validateRegistration, async (req, res) => {
     jwt.sign(
       payload,
       process.env.JWT_SECRET,
-      { expiresIn: '7d' },
+      // { expiresIn: '7d' },
       (err, token) => {
         if (err) throw err;
         res.json({
@@ -106,7 +107,7 @@ router.post('/login', validateLogin, async (req, res) => {
 
     // التحقق من تأكيد البريد الإلكتروني
     if (!user.isEmailVerified) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         message: 'يرجى تأكيد البريد الإلكتروني قبل تسجيل الدخول',
       });
     }
@@ -119,7 +120,8 @@ router.post('/login', validateLogin, async (req, res) => {
       }
     };
 
-    const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '7d' });
+    // const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign(payload, process.env.JWT_SECRET);
 
     // تجهيز معلومات الجهاز
     const deviceInfo = {
@@ -147,7 +149,7 @@ router.post('/login', validateLogin, async (req, res) => {
       }
     }
 
-    res.json({ 
+    res.json({
       token,
       sessionId: session._id,
       isNewDevice,
@@ -189,22 +191,45 @@ router.get('/me', protectRoute, async (req, res) => {
  */
 router.put('/profile', protectRoute, async (req, res) => {
   try {
-    const { firstName, lastName, phone, avatar } = req.body;
+    const { firstName, lastName, phone, avatar, city, bio } = req.body;
+
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ message: 'لم يتم التحقق من هوية المستخدم' });
+    }
+
     const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ message: 'المستخدم غير موجود' });
+    }
 
     if (firstName) user.firstName = firstName;
     if (lastName) user.lastName = lastName;
     if (phone) user.phone = phone;
-    if (avatar) user.profileImage = avatar;
+    if (city) user.city = city;
+    if (bio) user.bio = bio;
+    if (avatar) {
+      try {
+        const uploadResponse = await cloudinary.uploader.upload(avatar, {
+          folder: 'profile',
+          resource_type: 'auto',
+          allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp']
+        });
+        user.profileImage = uploadResponse.secure_url;
+      } catch (error) {
+        console.error('Error uploading image to Cloudinary:', error);
+        return res.status(500).json({ message: 'فشل رفع الصورة' });
+      }
+    }
 
     await user.save();
-
     res.json(user);
+
   } catch (err) {
-    console.error(err.message);
+    console.error('Server error while updating profile:', err);
     res.status(500).json({ message: 'خطأ في الخادم' });
   }
 });
+
 
 /**
  * @route   POST /api/auth/refresh-token

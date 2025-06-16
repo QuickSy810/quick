@@ -9,11 +9,14 @@ import followRoutes from './routes/followRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
 import usersRoutes from './routes/usersRoutes.js';
 import reportRoutes from './routes/reportRoutes.js';
+import versionRoutes from './routes/versionRoutes.js';
+import conversationRoute from './routes/conversationRoute.js';
 import { connectDB } from './lib/db.js';
 import job from './lib/cron.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+app.set('trust proxy', 1);
 
 job.start();
 // Middleware
@@ -28,9 +31,10 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/follow', followRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/reports', reportRoutes);
+app.use("/api/conversations", conversationRoute)
 app.use("/api/messages", messagesRoutes)
 app.use("/api/listings", listingsRoutes)
-
+app.use('/api/version', versionRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

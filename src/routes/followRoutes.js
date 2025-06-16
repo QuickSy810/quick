@@ -18,7 +18,7 @@ router.post('/:userId', protectRoute, async (req, res) => {
     }
 
     const user = await User.findById(req.user.id);
-    
+
     // التحقق من عدم متابعة النفس
     if (user.id === userToFollow.id) {
       return res.status(400).json({ message: 'لا يمكنك متابعة نفسك' });
@@ -76,7 +76,7 @@ router.delete('/:userId', protectRoute, async (req, res) => {
     // إزالة المتابعة
     user.following = user.following.filter(id => id.toString() !== userToUnfollow.id);
     userToUnfollow.followers = userToUnfollow.followers.filter(id => id.toString() !== user.id);
-
+    console.log(user)
     await Promise.all([
       user.save(),
       userToUnfollow.save()

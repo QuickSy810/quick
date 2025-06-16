@@ -1,7 +1,8 @@
 import express from 'express';
-import { protectRoute } from '../middleware/auth.middleware.js';
+import { protectRoute, optionalAuth } from '../middleware/auth.middleware.js';
 import { Notification } from '../models/Notification.js';
 import { User } from '../models/User.js';
+import { PushToken } from '../models/PushToken.js';
 
 const router = express.Router();
 
@@ -94,5 +95,44 @@ router.delete('/:id', protectRoute, async (req, res) => {
     res.status(500).json({ message: 'خطأ في الخادم' });
   }
 });
+
+
+
+router.post('/save-token', optionalAuth, async (req, res) => {
+  try {
+    const { expoPushToken, deviceInfo } = req.body;
+    console.log(req.body)
+    if (!expoPushToken) {
+      return res.status(400).json({ error: 'expoPushToken is required' });
+    }
+
+    const userId = req.user?.id;
+
+    const existing = await PushToken.findOne({ expoPushToken });
+
+    if (!existing) {
+      const token = new PushToken({
+        user: userId,
+        expoPushToken,
+        deviceInfo: deviceInfo || 'unknown'
+      });
+
+      await token.save();
+    } else if (!existing.user && userId) {
+      existing.user = userId;
+      await existing.save();
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: userId ? 'Token saved for user' : 'Token saved for guest'
+    });
+
+  } catch (error) {
+    console.error('Error saving push token:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 
 export default router; 

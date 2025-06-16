@@ -12,7 +12,7 @@ const listingSchema = new mongoose.Schema({
         type: String,
         required: [true, 'Description is required'],
         trim: true,
-        minlength: [10, 'Description must be at least 10 characters long'],
+        minlength: [2, 'Description must be at least 10 characters long'],
         maxlength: [2000, 'Description cannot exceed 2000 characters']
     },
     category: {
@@ -35,6 +35,11 @@ const listingSchema = new mongoose.Schema({
         type: String,
         enum: ['fixed', 'negotiable', 'free', 'contact'],
         default: 'fixed'
+    },
+    currency: {
+        type: String,
+        enum: ['SYP', 'USD'],
+        default: 'SYP'
     },
     condition: {
         type: String,
@@ -72,7 +77,7 @@ const listingSchema = new mongoose.Schema({
         },
         street: {
             type: String,
-            required: [true, 'Street is required'],
+            // required: [true, 'Street is required'],
             trim: true
         },
         details: {
@@ -107,7 +112,7 @@ const listingSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ['active', 'sold', 'received', 'inactive'],
+        enum: ['active', 'sold', 'received', 'inactive', 'draft'],
         default: 'active'
     },
     isFeatured: {

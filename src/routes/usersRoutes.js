@@ -53,9 +53,10 @@ router.patch('/:id/role', protectRoute, checkRole(['admin']), async (req, res) =
 });
 
 // Get public user profile
-router.get('/:userId', async (req, res) => {
+router.get('/:userId', protectRoute, async (req, res) => {
     try {
         const { userId } = req.params;
+        const userToFollow = await User.findById(req.user._id);
 
         if (!mongoose.Types.ObjectId.isValid(userId)) {
             return res.status(400).json({
@@ -75,12 +76,21 @@ router.get('/:userId', async (req, res) => {
             });
         }
 
+        const currentUserId = userToFollow.id
+        const PublicUserId = userId
+        const currentUser = await User.findById(currentUserId)
 
         const formattedResponse = {
             name: `${user.firstName} ${user.lastName}`,
             profileImage: user.profileImage,
+            id: user.id,
+            bio: user.bio,
             rating: user.averageRating || 0,
+            totalRatings: user.totalRatings || 0,
             joinDate: user.createdAt,
+            isEmailVerified: user.isEmailVerified,
+            followers: user.followers.length,
+            isFollowing: currentUser.following.includes(PublicUserId),
             stats: {
                 totalListings: user.stats.totalListings,
                 activeListings: user.stats.activeListings,

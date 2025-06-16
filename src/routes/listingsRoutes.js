@@ -9,6 +9,7 @@ import {
     notifyFollowersListingUpdate
 } from '../services/notificationService.js';
 
+
 const router = express.Router();
 
 // إنشاء محدد معدل الطلبات للحماية من الطلبات المتكررة
@@ -30,8 +31,8 @@ const validateListing = (req, res, next) => {
         errors.title = 'عنوان الإعلان يجب أن يكون بين 10 و 100 حرف';
     }
 
-    if (description && (description.length < 20 || description.length > 1000)) {
-        errors.description = 'وصف الإعلان يجب أن يكون بين 20 و 1000 حرف';
+    if (description && (description.length < 2 || description.length > 1000)) {
+        errors.description = 'وصف الإعلان يجب أن يكون بين 2 و 1000 حرف';
     }
 
     if (price && (isNaN(price) || price < 0)) {
@@ -58,7 +59,9 @@ router.post('/', [protectRoute, createListingLimiter, validateListing], async (r
             title,
             description,
             category,
+            subCategory,
             price,
+            currency,
             priceType,
             condition,
             location,
@@ -66,6 +69,14 @@ router.post('/', [protectRoute, createListingLimiter, validateListing], async (r
             attributes,
             status
         } = req.body;
+
+        // Validate status if provided
+        if (status && !['active', 'draft'].includes(status)) {
+            return res.status(400).json({
+                message: 'Invalid status provided',
+                validStatuses: ['active', 'draft']
+            });
+        }
 
         // Ensure user exists
         if (!req.user || !req.user._id) {
@@ -89,13 +100,12 @@ router.post('/', [protectRoute, createListingLimiter, validateListing], async (r
         }
 
         // Validate location object
-        if (!location.city || !location.area || !location.street) {
+        if (!location.city || !location.area) {
             return res.status(400).json({
                 message: 'Invalid location data',
                 missingFields: {
                     city: !location.city,
                     area: !location.area,
-                    street: !location.street
                 }
             });
         }
@@ -120,31 +130,22 @@ router.post('/', [protectRoute, createListingLimiter, validateListing], async (r
             return res.status(400).json({ message: 'Maximum 10 images allowed per listing' });
         }
 
-        // Validate status if provided
-        if (status && !['active', 'draft'].includes(status)) {
-            return res.status(400).json({
-                message: 'Invalid status provided',
-                validStatuses: ['active', 'draft']
-            });
-        }
-
         // Upload images to cloudinary in parallel
-        // const uploadPromises = images.map(async (image) => {
-        //     try {
-        //         const uploadResponse = await cloudinary.uploader.upload(image, {
-        //             folder: 'listings',
-        //             resource_type: 'auto',
-        //             allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp']
-        //         });
-        //         return uploadResponse.secure_url;
-        //     } catch (error) {
-        //         console.error('Error uploading image to Cloudinary:', error);
-        //         throw new Error('Failed to upload one or more images');
-        //     }
-        // });
+        const uploadPromises = images.map(async (image) => {
+            try {
+                const uploadResponse = await cloudinary.uploader.upload(image, {
+                    folder: 'listings',
+                    resource_type: 'auto',
+                    allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp']
+                });
+                return uploadResponse.secure_url;
+            } catch (error) {
+                console.error('Error uploading image to Cloudinary:', error);
+                throw new Error('Failed to upload one or more images');
+            }
+        });
 
-        // const uploadedImages = await Promise.all(uploadPromises);
-        // console.log('Successfully uploaded all images:', uploadedImages);
+        const uploadedImages = await Promise.all(uploadPromises);
 
 
         // Create new listing
@@ -152,7 +153,9 @@ router.post('/', [protectRoute, createListingLimiter, validateListing], async (r
             title,
             description,
             category,
+            subCategory,
             price: priceType === 'free' ? 0 : price,
+            currency,
             priceType,
             condition,
             location: {
@@ -160,11 +163,11 @@ router.post('/', [protectRoute, createListingLimiter, validateListing], async (r
                 type: location.type || 'Point',
                 coordinates: location.coordinates || [0, 0]
             },
-            // images: uploadedImages,
-            images,
+            images: uploadedImages,
+            // images,
             attributes,
             user: req.user._id,
-            status: status || 'active',
+            status: status,
         };
 
         const newListing = new Listing(listingData);
@@ -485,7 +488,7 @@ router.get('/user/:id', async (req, res) => {
         const listings = await Listing.find(filter)
             .skip(skip)
             .limit(limit)
-            .populate('user', 'firstName lastName profileImage')
+            .populate('user', 'firstName lastName profileImage bio followers contactInfo')
             .populate('category', 'nameInEnglish slug')
             .populate('subCategory', 'nameInEnglish slug');
 
@@ -572,18 +575,20 @@ router.delete('/:id', protectRoute, async (req, res) => {
 
         // Check if the user is the owner of the listing
         if (listing.user.toString() !== req.user._id.toString()) {
-            return res.status(403).json({ message: 'You are not authorized to delete this listing' });
+            return res.status(403).json({ message: 'You are not authorized to deactivate this listing' });
         }
 
-        // Delete the listing
-        await listing.deleteOne();
+        // Change status instead of deleting
+        listing.status = 'inactive'; // أو listing.isActive = false;
+        await listing.save();
 
-        res.json({ message: 'Listing deleted successfully' });
+        res.json({ message: 'Listing deactivated successfully' });
     } catch (error) {
-        console.error('Error deleting listing:', error);
-        res.status(500).json({ message: 'Server error while deleting listing' });
+        console.error('Error deactivating listing:', error);
+        res.status(500).json({ message: 'Server error while deactivating listing' });
     }
 });
+
 
 /**
  * الحصول على إعلانات المستخدم الحالي
@@ -806,16 +811,18 @@ router.get('/featured', async (req, res) => {
 router.get('/:id', async (req, res) => {
     try {
         const listing = await Listing.findById(req.params.id)
-            .populate('user', 'firstName lastName profileImage contactInfo');
+            .populate('user', 'firstName lastName profileImage contactInfo id');
 
         if (!listing) {
             return res.status(404).json({ message: 'Listing not found' });
         }
 
+        // TODO
         // If listing is draft, only allow owner to view it
-        if (listing.status === 'draft' && (!req.user || listing.user.toString() !== req.user._id.toString())) {
-            return res.status(404).json({ message: 'Listing not found' }); // Or 403 if more specific error is preferred
-        }
+        // if (listing.status === 'draft' && (!req.user || listing.user.toString() !== req.user.id.toString())) {
+        //     return res.status(404).json({ message: 'Listing not found' }); // Or 403 if more specific error is preferred
+        // }
+
 
         // Increment views
         listing.views = (listing.views || 0) + 1;

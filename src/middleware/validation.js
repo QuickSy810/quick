@@ -22,8 +22,8 @@ export const validateRegistration = (req, res, next) => {
   }
 
   // التحقق من رقم الهاتف (اختياري)
-  if (phone && !phone.match(/^(00963|\+963|963|0)?9\d{8}$/)) {
-    return res.status(400).json({ message: 'يرجى إدخال رقم هاتف سوري صحيح' });
+  if (phone && !phone.match(/^(?:\+|00)[1-9]\d{4,14}$/)) {
+    return res.status(400).json({ message: 'يرجى إدخال رقم هاتف دولي صحيح' });
 }
 
   next();

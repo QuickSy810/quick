@@ -62,7 +62,7 @@ const userSchema = new mongoose.Schema({
         type: String,
         required: true,
         trim: true,
-        match: [/^\+?[\d\s-]{10,}$/, 'Please enter a valid phone number']
+        match: [/^(?:\+|00)[1-9]\d{4,14}$/, 'Please enter a valid phone number']
     },
     city: {
         type: String,
@@ -121,11 +121,11 @@ const userSchema = new mongoose.Schema({
     preferences: {
         showPhone: {
             type: Boolean,
-            default: false
+            default: true
         },
         showEmail: {
             type: Boolean,
-            default: false
+            default: true
         },
         showAddress: {
             type: Boolean,
@@ -210,7 +210,7 @@ const userSchema = new mongoose.Schema({
     ratings: [ratingSchema],
     averageRating: {
         type: Number,
-        default: 0,
+        default: 5,
         min: 0,
         max: 5
     },
@@ -399,20 +399,20 @@ userSchema.methods.cleanOldSessions = async function () {
 };
 
 // دالة لحساب متوسط التقييم
-userSchema.methods.calculateAverageRating = function() {
+userSchema.methods.calculateAverageRating = function () {
     if (this.ratings.length === 0) {
         this.averageRating = 0;
         this.totalRatings = 0;
         return;
     }
-    
+
     const sum = this.ratings.reduce((acc, rating) => acc + rating.rating, 0);
     this.averageRating = parseFloat((sum / this.ratings.length).toFixed(1));
     this.totalRatings = this.ratings.length;
 };
 
 // حساب متوسط التقييم قبل الحفظ
-userSchema.pre('save', function(next) {
+userSchema.pre('save', function (next) {
     if (this.isModified('ratings')) {
         this.calculateAverageRating();
     }
