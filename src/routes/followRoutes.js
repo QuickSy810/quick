@@ -94,31 +94,31 @@ router.delete('/:userId', protectRoute, async (req, res) => {
  * @desc    الحصول على قائمة المتابعين
  * @access  Private
  */
-router.get('/followers', protectRoute, async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id)
-      .populate('followers', 'firstName lastName profileImage');
-    res.json(user.followers);
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).json({ message: 'خطأ في الخادم' });
-  }
-});
+// router.get('/followers', protectRoute, async (req, res) => {
+//   try {
+//     const user = await User.findById(req.user.id)
+//       .populate('followers', 'firstName lastName profileImage');
+//     res.json(user.followers);
+//   } catch (err) {
+//     console.error(err.message);
+//     res.status(500).json({ message: 'خطأ في الخادم' });
+//   }
+// });
 
 /**
  * @route   GET /api/follow/following
  * @desc    الحصول على قائمة المتابَعين
  * @access  Private
  */
-router.get('/following', protectRoute, async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id)
-      .populate('following', 'firstName lastName profileImage');
-    res.json(user.following);
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).json({ message: 'خطأ في الخادم' });
-  }
-});
+// router.get('/following', protectRoute, async (req, res) => {
+//   try {
+//     const user = await User.findById(req.user.id)
+//       .populate('following', 'firstName lastName profileImage');
+//     res.json(user.following);
+//   } catch (err) {
+//     console.error(err.message);
+//     res.status(500).json({ message: 'خطأ في الخادم' });
+//   }
+// });
 
 export default router; 

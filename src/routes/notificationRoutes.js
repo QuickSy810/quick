@@ -54,23 +54,23 @@ router.put('/read', protectRoute, async (req, res) => {
  * @desc    تحديث إعدادات الإشعارات
  * @access  Private
  */
-router.put('/settings', protectRoute, async (req, res) => {
-  try {
-    const { notificationSettings } = req.body;
-    const user = await User.findById(req.user.id);
+// router.put('/settings', protectRoute, async (req, res) => {
+//   try {
+//     const { notificationSettings } = req.body;
+//     const user = await User.findById(req.user.id);
 
-    user.notificationSettings = {
-      ...user.notificationSettings,
-      ...notificationSettings
-    };
+//     user.notificationSettings = {
+//       ...user.notificationSettings,
+//       ...notificationSettings
+//     };
 
-    await user.save();
-    res.json(user.notificationSettings);
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).json({ message: 'خطأ في الخادم' });
-  }
-});
+//     await user.save();
+//     res.json(user.notificationSettings);
+//   } catch (err) {
+//     console.error(err.message);
+//     res.status(500).json({ message: 'خطأ في الخادم' });
+//   }
+// });
 
 /**
  * @route   DELETE /api/notifications/:id
@@ -95,8 +95,6 @@ router.delete('/:id', protectRoute, async (req, res) => {
     res.status(500).json({ message: 'خطأ في الخادم' });
   }
 });
-
-
 
 router.post('/save-token', optionalAuth, async (req, res) => {
   try {

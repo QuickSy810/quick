@@ -7,35 +7,29 @@ import { validateRegistration, validateLogin } from '../middleware/validation.js
 import { protectRoute } from '../middleware/auth.middleware.js';
 import crypto from 'crypto';
 import {
-  sendPasswordResetEmail,
-  sendVerificationEmail,
   sendNewDeviceLoginAlert,
   sendWelcomeEmail,
-  sendAccountVerifiedEmail
+  sendAccountVerifiedEmail,
+  sendPasswordResetCodeEmail,
+  sendVerificationCodeEmail,
+  sendPasswordResetConfirmationEmail
 } from '../services/emailService.js';
 
 const router = express.Router();
 
-/**
- * @route   POST /api/auth/register
- * @desc    تسجيل مستخدم جديد
- * @access  Public
- */
 router.post('/register', validateRegistration, async (req, res) => {
   try {
     const { email, password, firstName, lastName, phone, city } = req.body;
 
-    // التحقق من وجود المستخدم
     let user = await User.findOne({ email });
     if (user) {
       return res.status(400).json({ message: 'البريد الإلكتروني مسجل مسبقاً' });
     }
 
-    // إنشاء رمز التحقق من البريد
-    const verificationToken = crypto.randomBytes(32).toString('hex');
-    const verificationExpires = Date.now() + 24 * 60 * 60 * 1000; // 24 ساعة
+    // رمز تحقق رقمي 6 أرقام
+    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const verificationExpires = Date.now() + 24 * 60 * 60 * 1000;
 
-    // إنشاء مستخدم جديد
     user = new User({
       email,
       password,
@@ -43,47 +37,39 @@ router.post('/register', validateRegistration, async (req, res) => {
       lastName,
       phone,
       city,
-      emailVerificationToken: verificationToken,
+      emailVerificationCode: verificationCode,
       emailVerificationExpires: verificationExpires
     });
 
     await user.save();
 
-    // إرسال بريد التحقق
-    await sendVerificationEmail(email, verificationToken);
+    await sendVerificationCodeEmail(email, verificationCode);
 
-    // إرسال بريد الترحيب
     try {
       await sendWelcomeEmail(email, firstName);
     } catch (error) {
       console.error('Failed to send welcome email:', error);
-      // لا نريد إيقاف عملية التسجيل إذا فشل إرسال بريد الترحيب
     }
 
-    // إنشاء توكن JWT
     const payload = {
       user: {
         id: user.id
       }
     };
 
-    jwt.sign(
-      payload,
-      process.env.JWT_SECRET,
-      // { expiresIn: '7d' },
-      (err, token) => {
-        if (err) throw err;
-        res.json({
-          token,
-          message: 'تم إرسال رابط التحقق إلى بريدك الإلكتروني'
-        });
-      }
-    );
+    jwt.sign(payload, process.env.JWT_SECRET, (err, token) => {
+      if (err) throw err;
+      res.json({
+        token,
+        message: 'تم إرسال رمز التحقق إلى بريدك الإلكتروني'
+      });
+    });
   } catch (err) {
     console.error(err.message);
     res.status(500).json({ message: 'خطأ في الخادم' });
   }
 });
+
 
 /**
  * @route   POST /api/auth/login
@@ -281,59 +267,61 @@ router.post('/forgot-password', async (req, res) => {
       return res.status(404).json({ message: 'المستخدم غير موجود' });
     }
 
-    // إنشاء توكن إعادة تعيين كلمة المرور
-    const resetToken = crypto.randomBytes(32).toString('hex');
-    user.resetPasswordToken = resetToken;
-    user.resetPasswordExpires = Date.now() + 3600000; // صالح لمدة ساعة
+    // إنشاء رمز تحقق من 6 أرقام صالح لمدة ساعة
+    const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
+
+    user.resetPasswordCode = resetCode;
+    user.resetPasswordExpires = Date.now() + 3600000; // ساعة
 
     await user.save();
 
-    // إرسال بريد إلكتروني مع رابط إعادة تعيين كلمة المرور
-    await sendPasswordResetEmail(user.email, resetToken)
+    // إرسال رمز التحقق عبر البريد الإلكتروني
+    await sendPasswordResetCodeEmail(user.email, resetCode);
 
-    // const resetUrl = `${process.env.CLIENT_URL}/auth/reset-password/${resetToken}`;
-    // await sendEmail({
-    //   to: user.email,
-    //   subject: 'إعادة تعيين كلمة المرور',
-    //   text: `لإعادة تعيين كلمة المرور، انقر على الرابط التالي: ${resetUrl}`
-    // });
-
-    res.json({ message: 'تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني' });
+    res.json({ message: 'تم إرسال رمز إعادة تعيين كلمة المرور إلى بريدك الإلكتروني' });
   } catch (err) {
     console.error(err.message);
     res.status(500).json({ message: 'خطأ في الخادم' });
   }
 });
 
+
 /**
  * @route   POST /api/auth/reset-password
  * @desc    إعادة تعيين كلمة المرور
  * @access  Public
  */
-router.post('/reset-password/:token', async (req, res) => {
+router.post('/reset-password', async (req, res) => {
   try {
-    const token = req.params.token;
-    const { password } = req.body;
-    console.log(token, password);
+    const { email, code, password } = req.body;
 
-    // البحث عن المستخدم بواسطة توكن إعادة تعيين كلمة المرور
+    if (!email || !code || !password) {
+      return res.status(400).json({ message: 'جميع الحقول مطلوبة' });
+    }
+
+    // البحث عن المستخدم بواسطة البريد الإلكتروني ورمز التحقق
     const user = await User.findOne({
-      resetPasswordToken: token,
+      email,
+      resetPasswordCode: code,
       resetPasswordExpires: { $gt: Date.now() }
     });
 
     if (!user) {
-      return res.status(400).json({ message: 'توكن إعادة تعيين كلمة المرور غير صالح أو منتهي الصلاحية' });
+      return res.status(400).json({ message: 'رمز التحقق غير صالح أو منتهي الصلاحية' });
     }
 
     // تشفير كلمة المرور الجديدة
-    // const salt = await bcrypt.genSalt(10);
-    // user.password = await bcrypt.hash(password, salt);
-    user.password = password;
-    user.resetPasswordToken = undefined;
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(password, salt);
+
+    // حذف بيانات الرمز بعد التحقق
+    user.resetPasswordCode = undefined;
     user.resetPasswordExpires = undefined;
 
     await user.save();
+
+    // إرسال بريد تأكيد إعادة تعيين كلمة المرور
+    await sendPasswordResetConfirmationEmail(user.email);
 
     res.json({ message: 'تم إعادة تعيين كلمة المرور بنجاح' });
   } catch (err) {
@@ -342,17 +330,19 @@ router.post('/reset-password/:token', async (req, res) => {
   }
 });
 
+
 /**
- * @route   GET /api/auth/verify-email/:token
- * @desc    تأكيد البريد الإلكتروني
+ * @route   POST /api/auth/verify-email
+ * @desc    تأكيد البريد الإلكتروني باستخدام رمز التحقق
  * @access  Public
  */
-router.get('/verify-email/:token', async (req, res) => {
+router.post('/verify-email', async (req, res) => {
   try {
-    const { token } = req.params;
+    const { email, code } = req.body;
 
     const user = await User.findOne({
-      emailVerificationToken: token,
+      email,
+      emailVerificationCode: code,
       emailVerificationExpires: { $gt: Date.now() }
     });
 
@@ -364,13 +354,13 @@ router.get('/verify-email/:token', async (req, res) => {
 
     // تحديث حالة التحقق
     user.isEmailVerified = true;
-    user.emailVerificationToken = undefined;
+    user.emailVerificationCode = undefined;
     user.emailVerificationExpires = undefined;
 
     await user.save();
 
-    // إرسال تم التأكيد من البريد
-    await sendAccountVerifiedEmail(user.email, user.firstName)
+    // إرسال بريد تم التحقق
+    await sendAccountVerifiedEmail(user.email, user.firstName);
 
     res.json({
       message: 'تم تأكيد البريد الإلكتروني بنجاح',
@@ -384,13 +374,17 @@ router.get('/verify-email/:token', async (req, res) => {
 
 /**
  * @route   POST /api/auth/resend-verification
- * @desc    إعادة إرسال رابط تأكيد البريد
+ * @desc    إعادة إرسال رمز تأكيد البريد
  * @access  Private
  */
 router.post('/resend-verification', async (req, res) => {
   try {
     const { email } = req.body;
     const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({ message: 'المستخدم غير موجود' });
+    }
 
     if (user.isEmailVerified) {
       return res.status(400).json({
@@ -399,23 +393,24 @@ router.post('/resend-verification', async (req, res) => {
     }
 
     // إنشاء رمز تحقق جديد
-    const verificationToken = crypto.randomBytes(32).toString('hex');
-    user.emailVerificationToken = verificationToken;
+    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+    user.emailVerificationCode = verificationCode;
     user.emailVerificationExpires = Date.now() + 24 * 60 * 60 * 1000; // 24 ساعة
 
     await user.save();
 
-    // إرسال بريد التحقق
-    await sendVerificationEmail(user.email, verificationToken);
+    // إرسال رمز التحقق
+    await sendVerificationCodeEmail(user.email, verificationCode);
 
     res.json({
-      message: 'تم إرسال رابط التحقق الجديد إلى بريدك الإلكتروني'
+      message: 'تم إرسال رمز التحقق الجديد إلى بريدك الإلكتروني'
     });
   } catch (err) {
     console.error(err.message);
     res.status(500).json({ message: 'خطأ في الخادم' });
   }
 });
+
 
 /**
  * @route   POST /api/auth/logout
@@ -441,42 +436,42 @@ router.post('/logout', protectRoute, async (req, res) => {
  * @desc    عرض جلسات المستخدم النشطة
  * @access  Private
  */
-router.get('/sessions', protectRoute, async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id);
-    const sessions = user.sessions || [];
+// router.get('/sessions', protectRoute, async (req, res) => {
+//   try {
+//     const user = await User.findById(req.user.id);
+//     const sessions = user.sessions || [];
 
-    res.json(sessions);
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).json({ message: 'خطأ في الخادم' });
-  }
-});
+//     res.json(sessions);
+//   } catch (err) {
+//     console.error(err.message);
+//     res.status(500).json({ message: 'خطأ في الخادم' });
+//   }
+// });
 
 /**
  * @route   DELETE /api/auth/sessions/:sessionId
  * @desc    إنهاء جلسة محددة
  * @access  Private
  */
-router.delete('/sessions/:sessionId', protectRoute, async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id);
-    const sessionIndex = user.sessions.findIndex(
-      session => session._id.toString() === req.params.sessionId
-    );
+// router.delete('/sessions/:sessionId', protectRoute, async (req, res) => {
+//   try {
+//     const user = await User.findById(req.user.id);
+//     const sessionIndex = user.sessions.findIndex(
+//       session => session._id.toString() === req.params.sessionId
+//     );
 
-    if (sessionIndex === -1) {
-      return res.status(404).json({ message: 'الجلسة غير موجودة' });
-    }
+//     if (sessionIndex === -1) {
+//       return res.status(404).json({ message: 'الجلسة غير موجودة' });
+//     }
 
-    user.sessions.splice(sessionIndex, 1);
-    await user.save();
+//     user.sessions.splice(sessionIndex, 1);
+//     await user.save();
 
-    res.json({ message: 'تم إنهاء الجلسة بنجاح' });
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).json({ message: 'خطأ في الخادم' });
-  }
-});
+//     res.json({ message: 'تم إنهاء الجلسة بنجاح' });
+//   } catch (err) {
+//     console.error(err.message);
+//     res.status(500).json({ message: 'خطأ في الخادم' });
+//   }
+// });
 
 export default router;

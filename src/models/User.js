@@ -71,7 +71,7 @@ const userSchema = new mongoose.Schema({
         enum: [
             'damascus', 'aleppo', 'homs', 'latakia', 'hama', 'tartus',
             'deirEzZor', 'alHasakah', 'raqqa', 'daraa', 'idlib',
-            'alSuwayda', 'quneitra'
+            'alSuwayda', 'quneitra', 'rifDimashq'
         ]
     },
     profileImage: {
@@ -166,9 +166,9 @@ const userSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
-    emailVerificationToken: String,
+    emailVerificationCode: String,
     emailVerificationExpires: Date,
-    resetPasswordToken: String,
+    resetPasswordCode: String,
     resetPasswordExpires: Date,
     sessions: [{
         deviceInfo: {

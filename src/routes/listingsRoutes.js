@@ -111,7 +111,7 @@ router.post('/', [protectRoute, createListingLimiter, validateListing], async (r
         }
 
         // Validate price if not free
-        if (priceType !== 'free' && (!price || price < 0)) {
+        if (priceType !== 'free' && priceType !== 'contact' && (!price || price < 0)) {
             return res.status(400).json({
                 message: 'Invalid price',
                 details: {
@@ -120,6 +120,7 @@ router.post('/', [protectRoute, createListingLimiter, validateListing], async (r
                 }
             });
         }
+
 
         // Validate images array
         if (!Array.isArray(images) || images.length === 0) {
@@ -154,7 +155,7 @@ router.post('/', [protectRoute, createListingLimiter, validateListing], async (r
             description,
             category,
             subCategory,
-            price: priceType === 'free' ? 0 : price,
+            price: (priceType === 'free' || priceType === 'contact') ? 0 : price,
             currency,
             priceType,
             condition,

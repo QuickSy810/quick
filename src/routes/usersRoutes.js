@@ -154,38 +154,38 @@ router.patch('/preferences', protectRoute, async (req, res) => {
 });
 
 // Update user bio
-router.patch('/bio', protectRoute, async (req, res) => {
-    try {
-        const { bio } = req.body;
+// router.patch('/bio', protectRoute, async (req, res) => {
+//     try {
+//         const { bio } = req.body;
 
-        if (!bio || bio.length > 500) {
-            return res.status(400).json({
-                message: 'Bio is required and must not exceed 500 characters'
-            });
-        }
+//         if (!bio || bio.length > 500) {
+//             return res.status(400).json({
+//                 message: 'Bio is required and must not exceed 500 characters'
+//             });
+//         }
 
-        const user = await User.findById(req.user._id);
+//         const user = await User.findById(req.user._id);
 
-        if (!user) {
-            return res.status(404).json({ message: 'User not found' });
-        }
+//         if (!user) {
+//             return res.status(404).json({ message: 'User not found' });
+//         }
 
-        user.bio = bio;
-        await user.save();
+//         user.bio = bio;
+//         await user.save();
 
-        res.json({
-            message: 'Bio updated successfully',
-            bio: user.bio
-        });
+//         res.json({
+//             message: 'Bio updated successfully',
+//             bio: user.bio
+//         });
 
-    } catch (error) {
-        console.error('Error updating bio:', error);
-        res.status(500).json({
-            message: 'Server error while updating bio',
-            error: error.message
-        });
-    }
-});
+//     } catch (error) {
+//         console.error('Error updating bio:', error);
+//         res.status(500).json({
+//             message: 'Server error while updating bio',
+//             error: error.message
+//         });
+//     }
+// });
 
 /**
  * @route   POST /api/users/:id/rate

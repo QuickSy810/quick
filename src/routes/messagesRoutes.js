@@ -51,6 +51,7 @@ router.post('/', protectRoute, async (req, res) => {
         res.status(500).json({ message: 'Failed to send message', error: error.message });
     }
 });
+
 // جلب جميع الرسائل لمحادثة معينة
 router.get('/:conversationId', protectRoute, async (req, res) => {
     try {
@@ -95,9 +96,6 @@ router.get('/:conversationId', protectRoute, async (req, res) => {
         res.status(500).json({ message: 'Error fetching messages', error: error.message });
     }
 });
-
-
-
 
 
 

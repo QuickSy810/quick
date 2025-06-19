@@ -86,27 +86,68 @@ export const sendVerificationEmail = async (to, token) => {
 
 
 /**
- * إرسال بريد إعادة تعيين كلمة المرور
+ * إرسال بريد رمز تحقق البريد الإلكتروني
  * @param {string} to عنوان البريد الإلكتروني
- * @param {string} token رمز إعادة التعيين
+ * @param {string} code رمز التحقق
  */
-export const sendPasswordResetEmail = async (to, token) => {
-  const resetUrl = `${process.env.CLIENT_URL}/auth/reset-password/${token}`;
+export const sendVerificationCodeEmail = async (to, code) => {
+  const message = `رمز التحقق الخاص بك هو: ${code}. صالح لمدة 24 ساعة.`;
+
+  const content = `
+    <p style="font-size: 16px;">مرحباً،</p>
+    <p style="font-size: 16px;">رمز التحقق الخاص بك لتأكيد بريدك الإلكتروني هو:</p>
+    <h2 style="font-size: 24px; color: #4CAF50;">${code}</h2>
+    <p style="font-size: 16px;">هذا الرمز صالح لمدة 24 ساعة.</p>
+    <p style="font-size: 16px;">إذا لم تطلب هذا الرمز، يرجى تجاهل هذا البريد الإلكتروني.</p>
+  `;
+
+  await sendEmail({
+    to,
+    subject: 'رمز تحقق البريد الإلكتروني',
+    text: message,
+    html: emailWrapper('رمز تحقق البريد الإلكتروني', content)
+  });
+};
+
+
+/**
+ * إرسال بريد إعادة تعيين كلمة المرور مع رمز التحقق
+ * @param {string} to عنوان البريد الإلكتروني
+ * @param {string} code رمز إعادة التعيين (6 أرقام)
+ */
+export const sendPasswordResetCodeEmail = async (to, code) => {
   const content = `
     <p style="font-size: 16px;">مرحباً،</p>
     <p style="font-size: 16px;">لقد تلقينا طلباً لإعادة تعيين كلمة المرور الخاصة بك. إذا لم تقم بهذا الطلب، يرجى تجاهل هذا البريد الإلكتروني.</p>
-    <p style="font-size: 16px;">لإعادة تعيين كلمة المرور، انقر على الزر التالي:</p>
-    <a href="${resetUrl}" style="background-color: #4CAF50; color: white; padding: 14px 20px; text-align: center; text-decoration: none; display: inline-block; border-radius: 4px;">إعادة تعيين كلمة المرور</a>
-    <p style="font-size: 16px;">أو انسخ الرابط التالي:</p>
-    <p style="font-size: 16px;">${resetUrl}</p>
-    <p style="font-size: 16px;">ينتهي هذا الرابط خلال ساعة واحدة.</p>
+    <p style="font-size: 16px;">رمز إعادة تعيين كلمة المرور الخاص بك هو:</p>
+    <h2 style="font-size: 24px; color: #4CAF50;">${code}</h2>
+    <p style="font-size: 16px;">الرمز صالح لمدة ساعة واحدة.</p>
+    <p style="font-size: 16px;">إذا لم تطلب ذلك، يرجى تجاهل هذا البريد.</p>
   `;
 
   await sendEmail({
     to,
     subject: 'إعادة تعيين كلمة المرور',
-    text: `مرحباً،\n\nلقد طلبت إعادة تعيين كلمة المرور. اضغط على الرابط التالي:\n${resetUrl}\n\nإذا لم تطلب ذلك، تجاهل الرسالة.\n\nالرابط صالح لمدة ساعة واحدة.`,
+    text: `مرحباً،\n\nلقد طلبت إعادة تعيين كلمة المرور. رمز إعادة التعيين الخاص بك هو: ${code}\n\nالرمز صالح لمدة ساعة واحدة.\n\nإذا لم تطلب ذلك، تجاهل الرسالة.`,
     html: emailWrapper('إعادة تعيين كلمة المرور', content)
+  });
+};
+
+/**
+ * إرسال بريد تأكيد إعادة تعيين كلمة المرور
+ * @param {string} to عنوان البريد الإلكتروني
+ */
+export const sendPasswordResetConfirmationEmail = async (to) => {
+  const content = `
+    <p style="font-size: 16px;">مرحباً،</p>
+    <p style="font-size: 16px;">تم تغيير كلمة المرور الخاصة بحسابك بنجاح. إذا لم تقم بهذا الإجراء، يرجى التواصل معنا فورًا.</p>
+  `;
+
+  await sendEmail({
+    to,
+    subject: 'تأكيد إعادة تعيين كلمة المرور',
+    text: `مرحباً،\n\nتم تغيير كلمة المرور الخاصة بحسابك.\n\nإذا لم تقم بهذا الإجراء، يرجى التواصل معنا فورًا.`,
+    html: emailWrapper('تأكيد إعادة تعيين كلمة المرور', content)
   });
 };
 

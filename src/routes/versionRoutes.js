@@ -5,7 +5,7 @@ import { protectRoute } from '../middleware/auth.middleware.js';
 const router = express.Router();
 
 // ✅ GET النسخة الأخيرة
-router.get('/latest-version', async (req, res) => {
+router.get('/latest-version', protectRoute, async (req, res) => {
     const { platform } = req.query;
 
     if (!platform) {
@@ -26,7 +26,7 @@ router.get('/latest-version', async (req, res) => {
 });
 
 // ✅ POST تحديث أو إضافة نسخة جديدة
-router.post('/update-version', async (req, res) => {
+router.post('/update-version', protectRoute, async (req, res) => {
     const { platform, version, link } = req.body;
 
     if (!platform || !version) {

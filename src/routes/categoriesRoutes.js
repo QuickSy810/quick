@@ -11,7 +11,7 @@ router.post('/', async (req, res) => {
     const categoryData = {
       nameInArabic,
       nameInEnglish,
-      parent: parent || null, 
+      parent: parent || null,
     };
 
     if (!parent) {
