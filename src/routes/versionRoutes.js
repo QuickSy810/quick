@@ -1,6 +1,6 @@
 import express from 'express';
 import Version from '../models/Version.js';
-import { protectRoute } from '../middleware/auth.middleware.js';
+import { checkRole, protectRoute } from '../middleware/auth.middleware.js';
 
 const router = express.Router();
 
@@ -26,7 +26,7 @@ router.get('/latest-version', async (req, res) => {
 });
 
 // ✅ POST تحديث أو إضافة نسخة جديدة
-router.post('/update-version', protectRoute, async (req, res) => {
+router.post('/update-version', protectRoute, checkRole(['admin']), async (req, res) => {
     const { platform, version, link } = req.body;
 
     if (!platform || !version) {
