@@ -369,6 +369,68 @@ router.get('/', async (req, res) => {
 
 
 /**
+ * الحصول على قائمة الإعلانات - مع ترتيب حسب المدينة إذا تم تمريرها
+ * GET /api/listings
+ */
+router.get('/home', async (req, res) => {
+    try {
+        const page = Math.max(1, parseInt(req.query.page) || 1);
+        const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 12));
+        const skip = (page - 1) * limit;
+
+        const filter = { status: 'active' };
+
+        // جلب جميع الإعلانات الفعالة
+        const listings = await Listing.find(filter)
+            .sort({ createdAt: -1 })
+            .populate('user', 'firstName lastName profileImage')
+            .populate('category', 'nameInEnglish slug')
+            .populate('subCategory', 'nameInEnglish slug');
+
+        let sortedListings = listings;
+
+        if (req.query.city) {
+            const requestedCity = req.query.city.trim().toLowerCase();
+
+            // ترتيب الإعلانات بحيث تكون الخاصة بالمدينة المطلوبة أولًا
+            sortedListings = listings.sort((a, b) => {
+                const aIsCity = (a.location.city || '').toLowerCase() === requestedCity;
+                const bIsCity = (b.location.city || '').toLowerCase() === requestedCity;
+
+                if (aIsCity && !bIsCity) return -1;
+                if (!aIsCity && bIsCity) return 1;
+                return 0;
+            });
+        }
+        // تطبيق الـ pagination بعد الترتيب
+        const paginatedListings = sortedListings.slice(skip, skip + limit);
+
+        const totalListings = listings.length;
+        const totalPages = Math.ceil(totalListings / limit);
+
+        res.json({
+            listings: paginatedListings,
+            pagination: {
+                currentPage: page,
+                totalPages,
+                totalItems: totalListings,
+                itemsPerPage: limit,
+                itemsReturned: paginatedListings.length,
+                hasNextPage: page < totalPages,
+                hasPreviousPage: page > 1
+            },
+            filters: {
+                city: req.query.city || null
+            }
+        });
+    } catch (error) {
+        console.error('Error fetching listings:', error);
+        res.status(500).json({ message: 'Server error while fetching listings', error: error.message });
+    }
+});
+
+
+/**
  * الحصول على قائمة الإعلانات لمستخدم معين
  * GET /api/listings/user/:id
  * @param {string} id - معرف المستخدم (userId)
@@ -867,23 +929,39 @@ router.put('/:id', protectRoute, async (req, res) => {
             return res.status(403).json({ message: 'Not authorized to update this listing' });
         }
 
+        const { priceType, price, status } = req.body;
+
+        // التحقق من السعر إذا لم يكن مجاني أو تواصل
+        if (priceType !== 'free' && priceType !== 'contact' && (!price || price < 0)) {
+            return res.status(400).json({
+                message: 'Invalid price',
+                details: { priceType, price }
+            });
+        }
+
         const oldPrice = listing.price;
 
-        // تحديث الإعلان في قاعدة البيانات
+        // نجهز التحديثات
+        const updateData = {
+            ...req.body,
+            price: (priceType === 'free' || priceType === 'contact') ? 0 : price
+        };
+
+
+        // تحديث الإعلان
         const updatedListing = await Listing.findByIdAndUpdate(
             req.params.id,
-            { $set: req.body },
+            { $set: updateData },
             { new: true }
         );
 
-        // إعداد بيانات الإشعار مع معلومات تغيير السعر
+        // إرسال إشعار
         const notificationData = {
             ...req.body,
-            priceChanged: req.body.price && req.body.price !== oldPrice,
-            oldPrice: req.body.price && req.body.price !== oldPrice ? oldPrice : undefined
+            priceChanged: price !== undefined && price !== oldPrice,
+            oldPrice: price !== undefined && price !== oldPrice ? oldPrice : undefined
         };
 
-        // إرسال إشعار للمتابعين
         await notifyFollowersListingUpdate(req.user._id, updatedListing, notificationData);
 
         res.json(updatedListing);
@@ -892,6 +970,7 @@ router.put('/:id', protectRoute, async (req, res) => {
         res.status(500).json({ message: 'Server error while updating listing' });
     }
 });
+
 
 /**
  * تحديث حالة الإعلان

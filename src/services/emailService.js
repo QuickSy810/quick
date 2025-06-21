@@ -59,30 +59,6 @@ const emailWrapper = (title, content) => `
 `;
 
 
-/**
- * إرسال بريد تأكيد البريد الإلكتروني
- * @param {string} to عنوان البريد الإلكتروني
- * @param {string} token رمز التحقق
- */
-export const sendVerificationEmail = async (to, token) => {
-  const verificationUrl = `${process.env.CLIENT_URL}/auth/verify-email/${token}`;
-  const content = `
-    <p style="font-size: 16px;">مرحباً،</p>
-    <p style="font-size: 16px;">لتأكيد بريدك الإلكتروني، يرجى النقر على الزر التالي:</p>
-    <a href="${verificationUrl}" style="background-color: #4CAF50; color: white; padding: 14px 20px; text-align: center; text-decoration: none; display: inline-block; border-radius: 4px;">تأكيد البريد الإلكتروني</a>
-    <p style="font-size: 16px;">أو انسخ الرابط التالي:</p>
-    <p style="font-size: 16px;">${verificationUrl}</p>
-    <p style="font-size: 16px;">ينتهي هذا الرابط خلال 24 ساعة.</p>
-    <p style="font-size: 16px;">إذا لم تقم بطلب هذا التأكيد، يرجى تجاهل هذا البريد الإلكتروني.</p>
-  `;
-
-  await sendEmail({
-    to,
-    subject: 'تأكيد البريد الإلكتروني',
-    text: `مرحباً،\n\nلتأكيد بريدك الإلكتروني، يرجى زيارة الرابط التالي:\n${verificationUrl}\n\nهذا الرابط ينتهي خلال 24 ساعة.\n\nإذا لم تطلب ذلك، تجاهل الرسالة.`,
-    html: emailWrapper('تأكيد البريد الإلكتروني', content)
-  });
-};
 
 
 /**
@@ -256,11 +232,6 @@ export const sendAccountVerifiedEmail = async (to, firstName) => {
       <li style="margin: 10px 0;">💬 التواصل مع المستخدمين</li>
     </ul>
     <p style="font-size: 16px;">ابدأ رحلتك الآن 👇</p>
-    <div style="text-align: center; margin: 20px 0;">
-      <a href="${process.env.CLIENT_URL}" style="background-color: #4CAF50; color: white; padding: 12px 24px; text-align: center; text-decoration: none; display: inline-block; border-radius: 4px; font-size: 16px;">
-        الذهاب إلى التطبيق
-      </a>
-    </div>
   `;
 
   await sendEmail({
@@ -272,9 +243,6 @@ export const sendAccountVerifiedEmail = async (to, firstName) => {
 تم تأكيد بريدك الإلكتروني بنجاح.
 
 أصبح بإمكانك الآن تسجيل الدخول والتفاعل الكامل مع المنصة.
-
-ابدأ الآن عبر الرابط التالي:
-${process.env.CLIENT_URL}
 
 مع تحياتنا،
 فريق الدعم

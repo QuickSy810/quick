@@ -5,7 +5,7 @@ import { protectRoute } from '../middleware/auth.middleware.js';
 const router = express.Router();
 
 // ✅ GET النسخة الأخيرة
-router.get('/latest-version', protectRoute, async (req, res) => {
+router.get('/latest-version', async (req, res) => {
     const { platform } = req.query;
 
     if (!platform) {

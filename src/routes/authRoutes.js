@@ -310,14 +310,10 @@ router.post('/reset-password', async (req, res) => {
       return res.status(400).json({ message: 'رمز التحقق غير صالح أو منتهي الصلاحية' });
     }
 
-    // تشفير كلمة المرور الجديدة
-    const salt = await bcrypt.genSalt(10);
-    user.password = await bcrypt.hash(password, salt);
-
     // حذف بيانات الرمز بعد التحقق
     user.resetPasswordCode = undefined;
     user.resetPasswordExpires = undefined;
-
+    user.password = password;
     await user.save();
 
     // إرسال بريد تأكيد إعادة تعيين كلمة المرور
