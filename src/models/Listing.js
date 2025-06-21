@@ -43,7 +43,7 @@ const listingSchema = new mongoose.Schema({
     },
     condition: {
         type: String,
-        enum: ['جديد', 'كالجديد', 'جيد', 'مقبول']
+        enum: ['جديد', 'كالجديد', 'جيد', 'مقبول', 'like-new', 'new', 'fair', 'good']
     },
     location: {
         type: {
