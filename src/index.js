@@ -13,13 +13,11 @@ import versionRoutes from './routes/versionRoutes.js';
 import conversationRoute from './routes/conversationRoute.js';
 import contactRoute from './routes/contactRoute.js';
 import { connectDB } from './lib/db.js';
-import job from './lib/cron.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 app.set('trust proxy', 1);
 
-job.start();
 // Middleware
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
