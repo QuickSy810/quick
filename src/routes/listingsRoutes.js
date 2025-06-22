@@ -236,7 +236,7 @@ router.get('/', async (req, res) => {
             }
         }
 
-        // === Category filter based on slug ===
+        // === Category filter ===
         if (req.query.category) {
             const categorySlug = req.query.category.trim().toLowerCase();
             const category = await Category.findOne({ slug: categorySlug, parent: null });
@@ -249,7 +249,7 @@ router.get('/', async (req, res) => {
             filter.category = category._id;
         }
 
-        // === Subcategory filter based on slug ===
+        // === Subcategory filter ===
         if (req.query.subcategory) {
             const subcategorySlug = req.query.subcategory.trim().toLowerCase();
             const subcategory = await Category.findOne({ slug: subcategorySlug });
@@ -262,23 +262,36 @@ router.get('/', async (req, res) => {
             filter.subCategory = subcategory._id;
         }
 
+        // === Currency filter ===
+        if (req.query.currency && ['SYP', 'USD'].includes(req.query.currency.toUpperCase())) {
+            filter.currency = req.query.currency.toUpperCase();
+        }
+
+        // === Sorting ===
+        let sort = { createdAt: -1 }; // default: newest
+        const sortQuery = (req.query.sort || 'newest').trim().toLowerCase();
+        switch (sortQuery) {
+            case 'priceasc':
+                sort = { price: 1 };
+                break;
+            case 'pricedesc':
+                sort = { price: -1 };
+                break;
+            case 'newest':
+            default:
+                sort = { createdAt: -1 };
+                break;
+        }
+
         // === Location filters ===
         if (req.query.city) {
-            filter['location.city'] = {
-                $regex: new RegExp(req.query.city, 'i')
-            };
+            filter['location.city'] = { $regex: new RegExp(req.query.city, 'i') };
         }
-
         if (req.query.area) {
-            filter['location.area'] = {
-                $regex: new RegExp(req.query.area, 'i')
-            };
+            filter['location.area'] = { $regex: new RegExp(req.query.area, 'i') };
         }
-
         if (req.query.street) {
-            filter['location.street'] = {
-                $regex: new RegExp(req.query.street, 'i')
-            };
+            filter['location.street'] = { $regex: new RegExp(req.query.street, 'i') };
         }
 
         // === Price range ===
@@ -292,7 +305,7 @@ router.get('/', async (req, res) => {
         // === Only active listings ===
         filter.status = 'active';
 
-        // === Pagination and Count ===
+        // === Pagination & Count ===
         const totalListings = await Listing.countDocuments(filter);
         const totalPages = Math.ceil(totalListings / limit);
 
@@ -313,7 +326,7 @@ router.get('/', async (req, res) => {
                 { featuredUntil: null }
             ]
         })
-            .sort({ createdAt: -1 })
+            .sort(sort)
             .populate('user', 'firstName lastName profileImage')
             .populate('category', 'nameInEnglish slug')
             .populate('subCategory', 'nameInEnglish slug');
@@ -324,9 +337,8 @@ router.get('/', async (req, res) => {
         const regularListings = remainingSlots > 0
             ? await Listing.find({
                 ...filter,
-                // isFeatured: false intentionally omitted to show all
             })
-                .sort({ createdAt: -1 })
+                .sort(sort)
                 .skip(skip)
                 .limit(remainingSlots)
                 .populate('user', 'firstName lastName profileImage')
@@ -334,7 +346,7 @@ router.get('/', async (req, res) => {
                 .populate('subCategory', 'nameInEnglish slug')
             : [];
 
-        const listings = [...featuredListings, ...regularListings].sort((a, b) => b.createdAt - a.createdAt);
+        const listings = [...featuredListings, ...regularListings];
 
         res.json({
             listings,
@@ -354,7 +366,9 @@ router.get('/', async (req, res) => {
                 city: req.query.city || null,
                 state: req.query.state || null,
                 minPrice: req.query.minPrice || null,
-                maxPrice: req.query.maxPrice || null
+                maxPrice: req.query.maxPrice || null,
+                currency: req.query.currency || null,
+                sort: sortQuery
             }
         });
 
@@ -366,6 +380,7 @@ router.get('/', async (req, res) => {
         });
     }
 });
+
 
 
 /**

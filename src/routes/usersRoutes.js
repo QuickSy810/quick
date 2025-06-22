@@ -6,6 +6,67 @@ import mongoose from 'mongoose';
 
 const router = express.Router();
 
+// Get user profile preferences 
+router.get('/preferences', protectRoute, async (req, res) => {
+    try {
+        const user = await User.findById(req.user.id);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        res.json({
+            preferences: user.preferences
+        });
+
+    } catch (error) {
+        console.error('Error getting profile preferences:', error);
+        res.status(500).json({
+            message: 'Server error while getting profile preferences',
+            error: error.message
+        });
+    }
+});
+
+// Update user profile preferences (add role check for self or admin)
+router.patch('/preferences', protectRoute, async (req, res) => {
+    try {
+        const { showPhone, showEmail, showAddress } = req.body;
+
+        const user = await User.findById(req.user._id);
+
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        // Only allow users to update their own preferences unless they're an admin
+        if (req.user.role !== 'admin' && req.user._id.toString() !== user._id.toString()) {
+            return res.status(403).json({ message: 'Access denied. You can only update your own preferences.' });
+        }
+
+        // Update preferences
+        user.preferences = {
+            showPhone: showPhone ?? user.preferences.showPhone,
+            showEmail: showEmail ?? user.preferences.showEmail,
+            showAddress: showAddress ?? user.preferences.showAddress
+        };
+
+        await user.save();
+
+        res.json({
+            message: 'Profile preferences updated successfully',
+            preferences: user.preferences
+        });
+
+    } catch (error) {
+        console.error('Error updating profile preferences:', error);
+        res.status(500).json({
+            message: 'Server error while updating profile preferences',
+            error: error.message
+        });
+    }
+});
+
+
 // Get all users (admin only)
 router.get('/', protectRoute, checkRole(['admin']), async (req, res) => {
     try {
@@ -114,78 +175,7 @@ router.get('/:userId', protectRoute, async (req, res) => {
     }
 });
 
-// Update user profile preferences (add role check for self or admin)
-router.patch('/preferences', protectRoute, async (req, res) => {
-    try {
-        const { showPhone, showEmail, showAddress } = req.body;
 
-        const user = await User.findById(req.user._id);
-
-        if (!user) {
-            return res.status(404).json({ message: 'User not found' });
-        }
-
-        // Only allow users to update their own preferences unless they're an admin
-        if (req.user.role !== 'admin' && req.user._id.toString() !== user._id.toString()) {
-            return res.status(403).json({ message: 'Access denied. You can only update your own preferences.' });
-        }
-
-        // Update preferences
-        user.preferences = {
-            showPhone: showPhone ?? user.preferences.showPhone,
-            showEmail: showEmail ?? user.preferences.showEmail,
-            showAddress: showAddress ?? user.preferences.showAddress
-        };
-
-        await user.save();
-
-        res.json({
-            message: 'Profile preferences updated successfully',
-            preferences: user.preferences
-        });
-
-    } catch (error) {
-        console.error('Error updating profile preferences:', error);
-        res.status(500).json({
-            message: 'Server error while updating profile preferences',
-            error: error.message
-        });
-    }
-});
-
-// Update user bio
-// router.patch('/bio', protectRoute, async (req, res) => {
-//     try {
-//         const { bio } = req.body;
-
-//         if (!bio || bio.length > 500) {
-//             return res.status(400).json({
-//                 message: 'Bio is required and must not exceed 500 characters'
-//             });
-//         }
-
-//         const user = await User.findById(req.user._id);
-
-//         if (!user) {
-//             return res.status(404).json({ message: 'User not found' });
-//         }
-
-//         user.bio = bio;
-//         await user.save();
-
-//         res.json({
-//             message: 'Bio updated successfully',
-//             bio: user.bio
-//         });
-
-//     } catch (error) {
-//         console.error('Error updating bio:', error);
-//         res.status(500).json({
-//             message: 'Server error while updating bio',
-//             error: error.message
-//         });
-//     }
-// });
 
 /**
  * @route   POST /api/users/:id/rate

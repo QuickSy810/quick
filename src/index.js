@@ -11,6 +11,7 @@ import usersRoutes from './routes/usersRoutes.js';
 import reportRoutes from './routes/reportRoutes.js';
 import versionRoutes from './routes/versionRoutes.js';
 import conversationRoute from './routes/conversationRoute.js';
+import contactRoute from './routes/contactRoute.js';
 import { connectDB } from './lib/db.js';
 import job from './lib/cron.js';
 
@@ -35,6 +36,7 @@ app.use("/api/conversations", conversationRoute)
 app.use("/api/messages", messagesRoutes)
 app.use("/api/listings", listingsRoutes)
 app.use('/api/version', versionRoutes);
+app.use('/api/contact', contactRoute);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

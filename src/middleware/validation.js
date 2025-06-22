@@ -24,7 +24,32 @@ export const validateRegistration = (req, res, next) => {
   // التحقق من رقم الهاتف (اختياري)
   if (phone && !phone.match(/^(?:\+|00)[1-9]\d{4,14}$/)) {
     return res.status(400).json({ message: 'يرجى إدخال رقم هاتف دولي صحيح' });
-}
+  }
+
+  next();
+};
+
+export const validateContactUs = (req, res, next) => {
+  const { name, email, subject, message } = req.body;
+
+  // التحقق من وجود البريد الإلكتروني
+  if (!email || !email.match(/^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/)) {
+    return res.status(400).json({ message: 'يرجى إدخال بريد إلكتروني صحيح' });
+  }
+
+  if (!name || name.length < 2) {
+    return res.status(400).json({ message: 'يجب أن يكون الاسم حرفين على الأقل' });
+  }
+
+  if (!subject || subject.length < 2) {
+    return res.status(400).json({ message: 'يجب أن يكون الاسم حرفين على الأقل' });
+  }
+
+  if (!message || message.length < 2) {
+    return res.status(400).json({ message: 'يجب أن يكون الاسم حرفين على الأقل' });
+  }
+
+
 
   next();
 };
@@ -43,7 +68,7 @@ export const validateLogin = (req, res, next) => {
   }
 
   next();
-}; 
+};
 
 // إضافة middleware للتحقق من المدخلات
 export const validateInput = (schema) => async (req, res, next) => {
